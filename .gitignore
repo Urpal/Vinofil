@@ -2,3 +2,5 @@
 venv/
 .DS_Store
 .data/user_taste_profiles.jsonl
+.gitignore
+data/

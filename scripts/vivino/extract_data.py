@@ -4,12 +4,14 @@ import json
 import pandas as pd
 import time
 import pprint
+import pickle as pickle
 
 #Load json string list
 json_string_list = []
 #Read the pickeled data:
-# with open ('outfile', 'rb') as fp:
-#     itemlist = pickle.load(fp)
+with open ('data/Australia_vivino_data.pickle', 'rb') as fp:
+    item_list = pickle.load(fp)
+print(item_list)
 
 # Create New Dataframe to store output
 column_names=["Wine", "Rating", "Ratings count", "Price", "Currency" , "Bottle type" ,"Size",
@@ -73,4 +75,4 @@ print("Dataframe size after remove dups: ")
 print(df.size())
 
 # Store the complete data as csv format
-df.to_csv("vivino.csv", index=False)
+df.to_csv("vivtest.csv", index=False)

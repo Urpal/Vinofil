@@ -1,0 +1,5 @@
+requests
+pickle
+pandas
+numpy
+json

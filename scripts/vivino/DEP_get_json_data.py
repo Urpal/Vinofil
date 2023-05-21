@@ -15,9 +15,13 @@ import pickle
 # df = pd.read_csv("data/country_codes_alpha_2_list.csv")
 # print(df.head(10))
 import csv
-with open('data/country_codes_alpha_2_list_test.csv', newline='\n') as f: #remove test when done
+with open('data/country_codes_alpha_2_list_short.csv', newline='\n') as f: #remove test when done
     reader = csv.reader(f)
-    land_list = list(reader)
+    land_dict = {rows[0]: rows[1] for rows in reader}
+    # land_list = list(reader)
+    # land_dict = csv.DictReader(reader, fieldnames=['country', 'country_code'])
+    print(land_dict)
+
 # print(data)
 # for land in data: 
 #   #land[1] is the alpha 2 country code whereas land [0] is the actual country name
