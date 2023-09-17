@@ -4,3 +4,5 @@ venv/
 .data/user_taste_profiles.jsonl
 .gitignore
 data/
+scripts/utils/__pycache__/
+scripts/utils/check_taxfree_df.py
