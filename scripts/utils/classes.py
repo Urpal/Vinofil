@@ -140,27 +140,29 @@ class PolWine:
         
 
 
-@dataclass
-class Wine:
-    # TODO: Find a good way to search though the dictionaries of the closest match wrt name. Pandas? Vector database? Similarity searches? Difflib? 
-    name: Optional[str] = None
-    last_updated: Optional[str] = None
+# This does not make any sense.. Could work with pointers but here it will just be ba sically aa deep copy. Should either way restructure everything and use relational databases!
+# Maybe the Pandas way is not so bad afterall. In the end, these are NOT classes but rather dataclasses meant to be put into relational databases such aas Postgres
+# @dataclass
+# class Wine:
+#     # TODO: Find a good way to search though the dictionaries of the closest match wrt name. Pandas? Vector database? Similarity searches? Difflib? 
+#     name: Optional[str] = None
+#     last_updated: Optional[str] = None
 
-    # Internal objects
-    taxfree_wine: Optional[TFWine] = None
-    polet_wine: Optional[Dict[str,PolWine]] = None
-    vivino_wine: Optional[VVWine] = None
+#     # Internal objects
+#     taxfree_wine: Optional[TFWine] = None
+#     polet_wine: Optional[Dict[str,PolWine]] = None
+#     vivino_wine: Optional[VVWine] = None
 
 
-    def to_dict(self):
-        json_dict = asdict(self)
-        try:
-            json_dict["pol_wines"] = {
-                key: pol_wine.to_dict() for key, pol_wine in self.polet_wine.items()
-            }
-        except AttributeError:
-            print("No wines from Polet found, return None")
-        return json_dict
+#     def to_dict(self):
+#         json_dict = asdict(self)
+#         try:
+#             json_dict["pol_wines"] = {
+#                 key: pol_wine.to_dict() for key, pol_wine in self.polet_wine.items()
+#             }
+#         except AttributeError:
+#             print("No wines from Polet found, return None")
+#         return json_dict
 
 
 

@@ -1,4 +1,4 @@
-from classes import Wine, VVWine, TFWine,PolWine
+from classes import  VVWine, TFWine,PolWine
 import requests
 import bs4 as bs
 from urllib.parse import quote
@@ -21,6 +21,7 @@ import time
 # Temp
 def extract_subset(dictionary, n):
     return {key: value for index, (key, value) in enumerate(dictionary.items()) if index < n}
+
 
 
 # Pol to TF mappings
@@ -106,7 +107,7 @@ def get_nested_attribute(data, *keys, default=None):
     return data
 
 def match_tf_wines():
-    # 1. Load and or generate new master wine dictionary
+    # 1. Load and or generate new mapping between TF and POL wines
     # 2. Insert tax_free product as ground truth
     # 3. Load all pol products depending on category? And check closest match to the one from the tax free.
     # 4. Insert the pole wines with a higher rating than the threshold
@@ -119,13 +120,13 @@ def match_tf_wines():
     os.makedirs(data_folder, exist_ok=True)
 
     #### Load master data dict ####
-    pickle_file_path = os.path.join(data_folder, 'wines_master.pkl')
+    pickle_file_path = os.path.join(data_folder, 'TF_to_POL.pkl')
     try:
         with open(pickle_file_path, "rb") as file:
-            master_dict = pickle.load(file)
+            TF_to_POL = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
     except FileNotFoundError:
         print("File does not exist.")
-        master_dict = {} # db.storage.json.get("gameDayInfo.json")
+        TF_to_POL = {} # db.storage.json.get("gameDayInfo.json")
     except pickle.PickleError as e:
         print(f"An error occurred with the pickle file: {e}")
 
@@ -216,37 +217,37 @@ def match_tf_wines():
     #     print() 
 
     # Get tax free subset and do comparison!
-    tf_subset = extract_subset(tf_dict,50)
+    tf_subset = tf_dict #extract_subset(tf_dict,50)
 
     # Initiate main dict of main wines.
     # TODO: Add load old main Wines here.
-    wines_main = {}
+    # wines_main = {}
 
     for tf_wine_name, tf_wine in tf_subset.items():
         #Initiate a new main Wine object. Might be better to just stick with the different objects and then just map them instead? 
-        main_wine = Wine()
-        main_wine.name = tf_wine_name
-        main_wine.taxfree_wine = tf_wine
+        # main_wine = Wine()
+        # main_wine.name = tf_wine_name
+        # main_wine.taxfree_wine = tf_wine
 
         # Check if type is available, otherwise move on, hence pol wine will be None
         # TODO: Add mapping of type such that subset is extracted! 
 
-        # Get list of mappen wine types from TF to polet since polet are using more categories..
+        # Get list of mapped wine types from TF to polet since polet are using more categories..
         wine_types = type_TF_to_POL[tf_wine._category]
         possible_matches = {}
         for wine_type in wine_types:
             try:
-                wines_type = structured_data[tf_wine._category]
+                wines_per_type = structured_data[wine_type]
             except KeyError as e:
-                print(f"Wine type key {tf_wine._category} does not seem to exist in the dataset: {e}")
+                print(f"Wine type key {wine_type} does not seem to exist in the dataset: {e}")
                 pass
 
             try:
-                wines_country = wines_type[country_EN_to_NO[tf_wine._country]]
+                wines_per_country = wines_per_type[country_EN_to_NO[tf_wine._country]]
             except KeyError as e:
-                print(f"Wine country {tf_wine._country} does not seem to exist in the dataset: {e}")
+                print(f"Wine country {tf_wine._country} does not seem to exist in the dataset: {wine_type} from {e}  ")
                 pass
-            possible_matches.update(wines_country)
+            possible_matches.update(wines_per_country)
         possible_name_matches_polet = possible_matches
 
 
@@ -274,14 +275,14 @@ def match_tf_wines():
                 tf_wine_name_searchable = tf_wine_name_searchable.replace(word,"")
 
         # Tests
-        for possible_match, wine_key in possible_name_matches_polet.items():
-            ratio = difflib.SequenceMatcher(None, possible_match.lower(), tf_wine_name_searchable.lower()).ratio()
-            if ratio > 0.8:
-                # probable_match.append(possible_match) # TODO: Add year or something too? 
-                # probable_match_rating.append(ratio)
-                probable_matches[possible_match] = {'similarity': ratio, 'key': wine_key} # TODO: End with this one maybe? 
+        # for possible_match, wine_key in possible_name_matches_polet.items():
+        #     ratio = difflib.SequenceMatcher(None, possible_match.lower(), tf_wine_name_searchable.lower()).ratio()
+        #     if ratio > 0.8:
+        #         # probable_match.append(possible_match) # TODO: Add year or something too? 
+        #         # probable_match_rating.append(ratio)
+        #         probable_matches[possible_match] = {'similarity': ratio, 'key': wine_key} # TODO: End with this one maybe? 
         
-        print(f"Possible matches for {tf_wine_name_searchable}: {probable_matches} using difflib.")
+        # print(f"Possible matches for {tf_wine_name_searchable}: {probable_matches} using difflib.")
         # probable_match = []
         # probable_match_rating = []
         
@@ -296,15 +297,21 @@ def match_tf_wines():
         # probable_match_rating = []
 
         # OR! Could do this directly in one process it seems!
-        probable_match_dict = process.extractBests(tf_wine_name_searchable, possible_name_matches_polet.keys(), limit=5, score_cutoff=80, scorer=fuzz.token_set_ratio)
-        print(f"Probable matches for {tf_wine_name_searchable}: {probable_match_dict} using toket_set_ratio")
+        probable_match_list = process.extractBests(tf_wine_name_searchable, possible_name_matches_polet.keys(), limit=5, score_cutoff=85, scorer=fuzz.token_set_ratio)
+        # print(f"Probable matches for {tf_wine_name_searchable}: {probable_match_list} using toket_set_ratio")
+        
         # probable_match_dict2 = process.extractBests(tf_wine_name_searchable, possible_name_matches_polet.keys(), limit=5, score_cutoff=80, scorer=fuzz.token_sort_ratio)
         # print(f"Probable matches for {tf_wine_name_searchable}: {probable_match_dict2} using other")
-        print()
-
-        # TODO: Compare the two different methods to actually just store 1, 2 or 3? 
-
-
+        # print()
+        
+        #### Get actual TF wine keys to find it later in the taxfree dict ####
+        tf_wine_keys = []
+        for wine_match in probable_match_list:
+            tf_wine_keys.append((possible_name_matches_polet[wine_match[0]],wine_match[1])) # Get the actual KEY For the TF dict for the matches based on their cleaned names
+            
+        #### Save the TF wine keys to the mapping ####
+        # if tf_wine_name not in TF_to_POL:
+        TF_to_POL[tf_wine_name] = tf_wine_keys
 
 
         # # TODO: IF THERE IS AN ACTUAL HIT:
@@ -328,32 +335,112 @@ def match_tf_wines():
         # probable_match_rating = []
 
 
-    pickle_file_path = os.path.join(data_folder, 'WINES.pkl')
+    pickle_file_path = os.path.join(data_folder, 'TF_to_POL.pkl')
     with open(pickle_file_path, "wb") as file:
-        pickle.dump(tf_dict, file)
+        pickle.dump(TF_to_POL, file)
+    
+    json_file_path = os.path.join(data_folder, 'TF_to_POL_map.json')
+    json_str = json.dumps(TF_to_POL, indent = 4)
+    with open(json_file_path, "w") as file:
+        file.write(json_str)
 
+    with open(json_file_path, 'r') as json_file:
+        loaded_map = json.load(json_file)
     
 
+def get_vivino_tf_wines():
+    data_folder = os.path.join(os.path.dirname(__file__), '..', 'data')
+    os.makedirs(data_folder, exist_ok=True)
 
-def get_single_product_vivino(wine : Wine):
-    wine_name = "Gran Feudo Crianza 2017"
-    if wine.wine_name != None:
-        wine_name = wine.wine_name
-    else:
-        print("Wine name of main object is None. -> Return")
+    ##### Load tax free dict ####
+    pickle_file_path = os.path.join(data_folder, 'TF.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            tf_dict = pickle.load(file)
+    except FileNotFoundError:
+        print("TF file does not exist. Return since it is needed to generate the winesmaster")
         return
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    #### Load Vivino data dict ####
+    pickle_file_path = os.path.join(data_folder, 'vivino.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            VVwines = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        VVwines = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    
+    pickle_file_path = os.path.join(data_folder, 'TF_to_VV.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            TF_to_VV = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        TF_to_VV = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+
+    for tf_wine_name, tf_wine in tf_dict.items():
+
+        # TODO: Remove this once searchable name has been properly added..
+        tf_wine_name_searchable = tf_wine_name.split("-_-")[0]
+        # Add year to TF name if missing
+        if str(tf_wine._year) not in tf_wine_name_searchable and tf_wine._year != None:
+            tf_wine_name_searchable = tf_wine_name_searchable + " " + str(tf_wine._year)
+        # Add brand to TF name if missing
+        if tf_wine._brand not in tf_wine_name_searchable and tf_wine._brand != None:
+            tf_wine_name_searchable = tf_wine._brand + " " + tf_wine_name_searchable
+
+        # Add size? (i.e. _amount) too for both TF and polet wines to find the correct bottle size?
+        stop_words = ["Bag in box"]
+        for word in stop_words:
+            if word in tf_wine_name_searchable:
+                tf_wine_name_searchable = tf_wine_name_searchable.replace(word,"")
+
+
+        VVwine = get_single_product_vivino(tf_wine_name_searchable, 0.8) # TODO: This needs to be fixed and OPNLY use the searchable name for everything mapping related! 
+        if VVwine not in VVwines and VVwine is not None:
+            VVwines[VVwine._name] = VVwine
+            TF_to_VV[tf_wine._name] = VVwine._name
+
+    pickle_file_path = os.path.join(data_folder, 'TF_to_VV.pkl')
+    with open(pickle_file_path, "wb") as file:
+        pickle.dump(TF_to_VV, file)
+
+    json_file_path = os.path.join(data_folder, 'TF_to_VV_map.json')
+    json_str = json.dumps(TF_to_VV, indent = 4)
+    with open(json_file_path, "w") as file:
+        file.write(json_str)
+
+
+def get_single_product_vivino(wine_name : str, timeout_seconds : float):
+    # Sleep for specified amount of time
+    time.sleep(timeout_seconds)
+
+    # wine_name = "Gran Feudo Crianza 2017"
+    # if wine.wine_name != None:
+    #     wine_name = wine.wine_name
+    # else:
+    #     print("Wine name of main object is None. -> Return")
+    #     return
     
     # Check if there is already a VVWine in the object
-    if wine.taxfree_wine._name != None:
-        vv_wine = wine.taxfree_wine
-    else:
-        vv_wine = VVWine()
-
+    # if wine.taxfree_wine._name != None:
+    #     vv_wine = wine.taxfree_wine
+    # else:
+    #     vv_wine = VVWine()
     
     # Search for a single product on vivino using the search functionality
     wine_name = wine_name.replace("\\s+", "+")
     encoded_name = quote(wine_name)
     wine_search_url = f"https://www.vivino.com/search/wines?q={encoded_name}"
+    vv_wine = VVWine()
 
     print(wine_search_url)
     headers = {
@@ -368,7 +455,7 @@ def get_single_product_vivino(wine : Wine):
         # We only try the first result
         first_card = soup.select_one('.card')
         # print(first_card)
-        wine = first_card.select_one('.bold').get_text(strip=True)
+        wine = first_card.select_one('.bold').get_text() # strip=True
         #print(wine)
         
         ##### TODO: Find these variables! 
@@ -376,7 +463,7 @@ def get_single_product_vivino(wine : Wine):
         # wine_match = 
         # TODO: Add a matcher to see how close match they are? 
 
-        wine_rating = float(first_card.select_one('.average__number').get_text(strip=True))
+        wine_rating = float(first_card.select_one('.average__number').get_text(strip=True).replace(',', '.'))
 
         wine_no_ratings =  first_card.select_one('.text-micro').get_text(strip=True)
         wine_no_ratings_int = int(wine_no_ratings.strip('ratings'))
@@ -391,7 +478,7 @@ def get_single_product_vivino(wine : Wine):
             image_url_match = re.search(r'url\(//images\.vivino\.com.*\)', wine_image_url)
             
             if image_url_match:
-                wine_image_url = image_url_match.group(0)[5:-1]  # Remove 'url(' and ')' from the match
+                wine_image_url = image_url_match.group(0)[6:-1]  # Remove 'url(' and ')' from the match
                 print(wine_image_url)
             else:
                 print("Image URL not found")
@@ -399,7 +486,7 @@ def get_single_product_vivino(wine : Wine):
             print("Image wrapper not found")
     
         # Insert information into object
-        # vv_wine._wine_name = wine_name
+        vv_wine._name = wine
         last_updated = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
         last_updated_string = last_updated.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -412,11 +499,9 @@ def get_single_product_vivino(wine : Wine):
         vv_wine._image_url = wine_image_url
 
     else:
-        print(f"Request to {wine_search_url} failed with status code {r.status_code}")
+        print(f"Request to {wine_search_url} failed with status code {r.status_code} and description: {r.reason}")
 
-
-def get_vivino_for_tf():
-    print("TEST")
+    return vv_wine
 
 
 def get_all_taxfree(): #(wines : Dict[str,Wine]):
