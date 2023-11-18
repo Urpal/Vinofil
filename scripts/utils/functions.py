@@ -997,6 +997,7 @@ def get_all_polet():
 
 def get_vivino(wine_name : str):
     wine_name = wine_name.replace("\\s+", "+")
+    # TODO: HANDLE Dom. navnet i viner. Burde egentlig fjerne det da søket da plutselig ender med å finne Dom perignon lol!
     encoded_name = quote(wine_name)
     wine_search_url = f"https://www.vivino.com/search/wines?q={encoded_name}"
 
@@ -1217,12 +1218,14 @@ def get_pol_df():
                 # 'pol_brand': pol_wine._brand,
                 'pol_country': pol_wine._main_country ,
                 'pol_category': pol_wine._main_category,
-                # 'pol_type': pol_wine._type,
-                'pol_area': pol_wine._district ,
+                'pol_expired': pol_wine._expired,
+                'pol_buyable': pol_wine._buyable,
+                'pol_text':pol_wine._availability_text,
+                'pol_area': pol_wine._district,
                 # 'pol_grapes': pol_wine._grapes,
                 # 'pol_percentage': pol_wine._alc_percentage,
                 'pol_price': pol_wine._price,
-                # 'pol_amount': pol_wine._amount,
+                'pol_amount': pol_wine._amount,
                 'pol_litre_price': pol_wine._price_litre*100,
                 'pol_url': pol_wine._url,
                 # 'pol_description': pol_wine._description,
