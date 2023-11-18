@@ -74,7 +74,7 @@ for country in country_list:
         
 
         # Performs inital request for count of IDs
-        time.sleep(10) #Sleep for 10 seconds since that is the minimum time vivino has set :P
+        time.sleep(20) #Sleep for 10 seconds since that is the minimum time vivino has set :P
         r = requests.get('https://www.vivino.com/api/explore/explore?', params=params, headers=headers)
         json_reply = r.json()
         # print(r.json()['explore_vintage']['market'])
@@ -92,7 +92,7 @@ for country in country_list:
                 pages = 1
 
             for i in range(pages):
-                time.sleep(10) #Sleep for 10 seconds since that is the minimum time vivino has set :P
+                time.sleep(20) #Sleep for 10 seconds since that is the minimum time vivino has set :P
                 # Adds the page to params
                 params['page'] = i + 1
                 print(f'Requesting data from page: {params["page"]} of {pages}')
@@ -130,7 +130,8 @@ for country in country_list:
                         json_string_dict[match['vintage']['name']] = match
                     else:
                         print(f"Duplicate entry for: {match['vintage']['name']}")
-                        print(json_string_dict[match['vintage']['name']])
+                        existing_obj = json_string_dict[match['vintage']['name']]
+                        # print(json_string_dict[match['vintage']['name']])
                 handling_time = time.time()
 
     # Save data after each request for the specified country that is being queried

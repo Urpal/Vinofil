@@ -348,6 +348,119 @@ def match_tf_wines():
         loaded_map = json.load(json_file)
     
 
+def get_vivino_pol_wines():
+    data_folder = os.path.join(os.path.dirname(__file__), '..', 'data')
+    os.makedirs(data_folder, exist_ok=True)
+
+    ##### Load pol dict ####
+    pickle_file_path = os.path.join(data_folder, 'polet.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            pol_dict = pickle.load(file)
+    except FileNotFoundError:
+        print("TF file does not exist. Return since it is needed to generate the winesmaster")
+        return
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+    
+
+    #### Load Vivino data dict ####
+    pickle_file_path = os.path.join(data_folder, 'vivino_pol.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            VVwines = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        VVwines = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    pickle_file_path = os.path.join(data_folder, 'POL_to_VV.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            POL_to_VV = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        POL_to_VV = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+    
+    # Need to split the pol dict into the different types of wines and not have brennevin etc laying around...
+
+    wine_types = 'Rødvin', 'Rosévin', 'Hvitvin', 'Musserende vin', 'Fruktvin', 'Perlende vin', 'Sterkvin', 'Aromatisert vin'
+
+    counter = 1
+    start_index = 0
+    # for pol_wine_name, pol_wine in pol_dict.items():
+    for index, (pol_wine_name, pol_wine) in enumerate(pol_dict.items()):
+        counter += 1
+        if index < start_index:
+            continue
+        try:
+            if pol_wine._main_category in wine_types and pol_wine._name not in POL_to_VV.keys():
+                print(f"Getting wine nr {counter}/{len(pol_dict)}")
+                # TODO: Remove this once searchable name has been properly added..
+                pol_wine_name_searchable = pol_wine_name.split("-_-")[0]
+
+                # Add size? (i.e. _amount) too for both TF and polet wines to find the correct bottle size?
+                stop_words = ["Bag in box"]
+                for word in stop_words:
+                    if word in pol_wine_name_searchable:
+                        pol_wine_name_searchable = pol_wine_name_searchable.replace(word,"")
+
+                VVwine = get_single_product_vivino(pol_wine_name_searchable, 15.5) # TODO: This needs to be fixed and OPNLY use the searchable name for everything mapping related! 
+
+                # Handle loss of internet connection by raising keyboard interrupt to store wine data.
+                if VVwine == None:
+                    raise KeyboardInterrupt
+
+                VV_wine_name = VVwine._name
+                if VV_wine_name == None:
+                    print(f"Could not find a vivino wine at all for: {pol_wine._name}")
+                    #continue #Pass this entry and continue.. Do I need this? Better to just store None? 
+                    # TODO: Add a "Searched" Dict to keep track of which ones have been searched such that I am not researching evrything all the time.
+
+                # Check if the Vivino wine name is not in the vivino wine dictionary and that it was not returned with None
+                # TODO: Maybe split these checks to handle None values if Vivino searcher cannot find anything? 
+                if pol_wine._name not in POL_to_VV:
+                    VVwines[VVwine._name] = VVwine #This is basically just storing the same entry if there are multiple of the same...
+                    POL_to_VV[pol_wine._name] = VVwine._name
+        except KeyboardInterrupt:
+            print(f"keyboard interrupt triggered. Save shit and continue end?  ")
+
+            # Save the dictionaries
+            pickle_file_path = os.path.join(data_folder, 'POL_to_VV.pkl')
+            with open(pickle_file_path, "wb") as file:
+                pickle.dump(POL_to_VV, file)
+
+            json_file_path = os.path.join(data_folder, 'POL_to_VV_map.json')
+            json_str = json.dumps(POL_to_VV, indent = 4)
+            with open(json_file_path, "w") as file:
+                file.write(json_str)
+            
+            pickle_file_path = os.path.join(data_folder, 'vivino_pol.pkl')
+            with open(pickle_file_path, "wb") as file:
+                pickle.dump(VVwines, file)
+            
+            raise Exception("Abort after saving the details")
+
+
+    # Save the dictionaries
+    pickle_file_path = os.path.join(data_folder, 'POL_to_VV.pkl')
+    with open(pickle_file_path, "wb") as file:
+        pickle.dump(POL_to_VV, file)
+
+    json_file_path = os.path.join(data_folder, 'POL_to_VV_map.json')
+    json_str = json.dumps(POL_to_VV, indent = 4)
+    with open(json_file_path, "w") as file:
+        file.write(json_str)
+    
+    pickle_file_path = os.path.join(data_folder, 'vivino_pol.pkl')
+    with open(pickle_file_path, "wb") as file:
+        pickle.dump(VVwines, file)
+
+
+
 def get_vivino_tf_wines():
     data_folder = os.path.join(os.path.dirname(__file__), '..', 'data')
     os.makedirs(data_folder, exist_ok=True)
@@ -364,7 +477,7 @@ def get_vivino_tf_wines():
         print(f"An error occurred with the pickle file: {e}")
 
     #### Load Vivino data dict ####
-    pickle_file_path = os.path.join(data_folder, 'vivino.pkl')
+    pickle_file_path = os.path.join(data_folder, 'vivino_tf.pkl')
     try:
         with open(pickle_file_path, "rb") as file:
             VVwines = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
@@ -385,9 +498,10 @@ def get_vivino_tf_wines():
     except pickle.PickleError as e:
         print(f"An error occurred with the pickle file: {e}")
 
-
+    counter = 1
     for tf_wine_name, tf_wine in tf_dict.items():
-
+        print(f"Getting wine nr {counter}/{len(tf_dict)}")
+        counter += 1
         # TODO: Remove this once searchable name has been properly added..
         tf_wine_name_searchable = tf_wine_name.split("-_-")[0]
         # Add year to TF name if missing
@@ -404,11 +518,15 @@ def get_vivino_tf_wines():
                 tf_wine_name_searchable = tf_wine_name_searchable.replace(word,"")
 
 
-        VVwine = get_single_product_vivino(tf_wine_name_searchable, 0.8) # TODO: This needs to be fixed and OPNLY use the searchable name for everything mapping related! 
-        if VVwine not in VVwines and VVwine is not None:
+        VVwine = get_single_product_vivino(tf_wine_name_searchable, 15.5) # TODO: This needs to be fixed and OPNLY use the searchable name for everything mapping related! 
+        VV_wine_name = VVwine._name
+        # Check if the Vivino wine name is not in the vivino wine dictionary and that it was not returned with None
+        # TODO: Maybe split these checks to handle None values if Vivino searcher cannot find anything? 
+        if VV_wine_name not in VVwines and VV_wine_name is not None:
             VVwines[VVwine._name] = VVwine
             TF_to_VV[tf_wine._name] = VVwine._name
 
+    # Save the dictionaries
     pickle_file_path = os.path.join(data_folder, 'TF_to_VV.pkl')
     with open(pickle_file_path, "wb") as file:
         pickle.dump(TF_to_VV, file)
@@ -417,11 +535,23 @@ def get_vivino_tf_wines():
     json_str = json.dumps(TF_to_VV, indent = 4)
     with open(json_file_path, "w") as file:
         file.write(json_str)
+    
+    pickle_file_path = os.path.join(data_folder, 'vivino_tf.pkl')
+    with open(pickle_file_path, "wb") as file:
+        pickle.dump(VVwines, file)
 
 
+import random
+import time
 def get_single_product_vivino(wine_name : str, timeout_seconds : float):
     # Sleep for specified amount of time
-    time.sleep(timeout_seconds)
+    random_seed = 42  # Replace with your chosen random seed or generate it dynamically
+    # Calculate the random time difference between -0.25 and 0.25 seconds
+    random_time_difference = (random.random() - 0.5) * 1  # Random value between 
+    # Combine the default timeout with the random time difference
+    timeout = timeout_seconds + random_time_difference
+    # print(f"Timeout: {timeout} seconds")
+    time.sleep(timeout)
 
     # wine_name = "Gran Feudo Crianza 2017"
     # if wine.wine_name != None:
@@ -442,11 +572,14 @@ def get_single_product_vivino(wine_name : str, timeout_seconds : float):
     wine_search_url = f"https://www.vivino.com/search/wines?q={encoded_name}"
     vv_wine = VVWine()
 
-    print(wine_search_url)
+    # print(wine_search_url)
     headers = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0",
     }
-    r = requests.get(wine_search_url, headers=headers)
+    try:
+        r = requests.get(wine_search_url, headers=headers)
+    except:
+        return None
     if r.status_code == 200:
         html_content = r.text
         soup = bs.BeautifulSoup(html_content, 'html.parser')
@@ -455,18 +588,25 @@ def get_single_product_vivino(wine_name : str, timeout_seconds : float):
         # We only try the first result
         first_card = soup.select_one('.card')
         # print(first_card)
-        wine = first_card.select_one('.bold').get_text() # strip=True
+        try:
+            wine = first_card.select_one('.bold').get_text().replace("\n", "") # strip=True
+        except AttributeError:
+            return VVWine #Or none? 
         #print(wine)
         
         ##### TODO: Find these variables! 
         # wine_name =  #Find the wine name that is actually the hit of the first search too.
         # wine_match = 
         # TODO: Add a matcher to see how close match they are? 
-
-        wine_rating = float(first_card.select_one('.average__number').get_text(strip=True).replace(',', '.'))
-
-        wine_no_ratings =  first_card.select_one('.text-micro').get_text(strip=True)
-        wine_no_ratings_int = int(wine_no_ratings.strip('ratings'))
+        try:
+            wine_rating = float(first_card.select_one('.average__number').get_text(strip=True).replace(',', '.'))
+        except ValueError:
+            wine_rating = None
+        try:
+            wine_no_ratings =  first_card.select_one('.text-micro').get_text(strip=True)
+        except AttributeError:
+            wine_no_ratings = None
+        wine_no_ratings_int = int(wine_no_ratings.strip('ratings')) if wine_no_ratings is not None else 0
 
         # wine_url =  first_card.select_one('div.wine-card__image-wrapper a').get_text(strip=True)
         wine_url = first_card.select_one('div.wine-card__image-wrapper a')['href']
@@ -479,7 +619,7 @@ def get_single_product_vivino(wine_name : str, timeout_seconds : float):
             
             if image_url_match:
                 wine_image_url = image_url_match.group(0)[6:-1]  # Remove 'url(' and ')' from the match
-                print(wine_image_url)
+                # print(wine_image_url)
             else:
                 print("Image URL not found")
         else:
@@ -499,6 +639,11 @@ def get_single_product_vivino(wine_name : str, timeout_seconds : float):
         vv_wine._image_url = wine_image_url
 
     else:
+        if r.status_code == 429:
+            # TODO: Add retry
+            print(f"Too many requests! Response:\n: {r}")
+            # Still getting this after like 130 wines scraped with 5 seconds delay. Says that it is triggering some sort of batch triggers :P
+            # Add an extra timeout and or a retry here + possibly save the dictionaries? 
         print(f"Request to {wine_search_url} failed with status code {r.status_code} and description: {r.reason}")
 
     return vv_wine
@@ -894,3 +1039,208 @@ def get_vivino(wine_name : str):
             print("Image wrapper not found")
     else:
         print(f"Request to {wine_search_url} failed with status code {r.status_code}")
+
+
+import pandas as pd
+def get_TF_df():
+    data_folder = os.path.join(os.path.dirname(__file__), '..', 'data')
+    os.makedirs(data_folder, exist_ok=True)
+
+    ##### Load tax free dict ####
+    pickle_file_path = os.path.join(data_folder, 'TF.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            tf_dict = pickle.load(file)
+    except FileNotFoundError:
+        print("TF file does not exist. Return since it is needed to generate the winesmaster")
+        return
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    #### Load Vivino data dict ####
+    pickle_file_path = os.path.join(data_folder, 'vivino_tf.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            VVwines = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        VVwines = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    # Load TF to VV mapping
+    pickle_file_path = os.path.join(data_folder, 'TF_to_VV.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            TF_to_VV = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        TF_to_VV = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    ##### Load Pol dict ####
+    pickle_file_path = os.path.join(data_folder, 'polet.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            pol_dict = pickle.load(file)
+    except FileNotFoundError:
+        print("TF file does not exist. Return since it is needed to generate the winesmaster")
+        return
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    # Load TF to Pol mapping
+    pickle_file_path = os.path.join(data_folder, 'TF_to_POL.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            TF_to_POL = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        TF_to_VV_POL = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+    
+    row_list = []
+    for tf_wine_name, tf_wine in tf_dict.items():
+        try:
+            vv_wine = VVwines[TF_to_VV[tf_wine_name]]
+            pol_wine_keys = TF_to_POL[tf_wine_name]
+
+            row_dict = {
+                'tf_name': tf_wine._name,
+                'tf_year': tf_wine._year,
+                'tf_brand': tf_wine._brand,
+                'tf_country': tf_wine._country,
+                'tf_category': tf_wine._category,
+                'tf_type': tf_wine._type,
+                'tf_area': tf_wine._area,
+                'tf_grapes': tf_wine._grapes,
+                'tf_percentage': tf_wine._alc_percentage,
+                'tf_price': tf_wine._price_NOK,
+                'tf_amount': tf_wine._amount,
+                'tf_litre_price': tf_wine._price_NOK_litre,
+                'tf_url': tf_wine._url,
+                'tf_description': tf_wine._description,
+                'vv_name': vv_wine._name,
+                'vv_rating': vv_wine._rating,
+                'vv_ratings': vv_wine._no_of_ratings,
+                'vv_url': vv_wine._full_wine_url,
+                }
+            
+            # This is not the best way to do this since it is a variable that might as well be 3 or whatever. TODO: Fix, parameterize
+            for i in range (1,6):
+                if (i <= len(pol_wine_keys)):
+                    pol_wine = pol_dict[pol_wine_keys[i-1][0]]
+                    row_dict[f'pol{i}_name'] = pol_wine._name 
+                    row_dict[f'pol{i}_match'] = pol_wine_keys[i-1][1]  
+                    row_dict[f'pol{i}_category'] = pol_wine._main_category 
+                    row_dict[f'pol{i}_price'] = pol_wine._price 
+                    row_dict[f'pol{i}_litre_price'] = pol_wine._price_litre*100 
+                    row_dict[f'pol{i}_url'] = pol_wine._url 
+                    row_dict[f'pol{i}_country'] = pol_wine._main_country 
+                    row_dict[f'pol{i}_district'] = pol_wine._district 
+                    row_dict[f'pol{i}_tf_discount_percent'] = ((pol_wine._price_litre*100 - tf_wine._price_NOK_litre)/(pol_wine._price_litre*100))*100 
+                    row_dict[f'pol{i}_tf_discount_NOK'] = (pol_wine._price_litre*100 - tf_wine._price_NOK_litre)
+
+                else:
+                    row_dict[f'pol{i}_name'] = None
+                    row_dict[f'pol{i}_match'] = None
+                    row_dict[f'pol{i}_category'] = None
+                    row_dict[f'pol{i}_price'] = None
+                    row_dict[f'pol{i}_litre_price'] = None
+                    row_dict[f'pol{i}_url'] = None
+                    row_dict[f'pol{i}_country'] = None
+                    row_dict[f'pol{i}_district'] = None
+                    row_dict[f'pol{i}_tf_discount'] = None
+            row_list.append(row_dict)
+
+        except KeyError as e:
+            # print(f"Key not present in TF to VV mapping, query probably returned NO matches... Pass on this wine then. Error key: {e}")
+            pass
+        
+    
+    df = pd.DataFrame(row_list)
+    print(df.head(5))
+    csv_file_path = os.path.join(data_folder, 'TF_POL_VV_export.csv')
+    with open(csv_file_path, "w") as file:
+        file.write(df.to_csv())
+
+import re
+extract_year = lambda s: int(re.search(r'\b(18\d{2}|19\d{2}|20\d{2}|21\d{2})\b', s).group()) if re.search(r'\b(18\d{2}|19\d{2}|20\d{2}|21\d{2})\b', s) else None
+
+def get_pol_df():
+    data_folder = os.path.join(os.path.dirname(__file__), '..', 'data')
+    os.makedirs(data_folder, exist_ok=True)
+
+    ##### Load pol dict ####
+    pickle_file_path = os.path.join(data_folder, 'polet.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            pol_dict = pickle.load(file)
+    except FileNotFoundError:
+        print("TF file does not exist. Return since it is needed to generate the winesmaster")
+        return
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    #### Load Vivino data dict ####
+    pickle_file_path = os.path.join(data_folder, 'vivino_pol.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            VVwines = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        VVwines = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    # Load Pol to VV mapping
+    pickle_file_path = os.path.join(data_folder, 'Pol_to_VV.pkl')
+    try:
+        with open(pickle_file_path, "rb") as file:
+            POL_to_VV = pickle.load(file) #This is now just a normal dictionary of mappings between Taxfree and pol wines
+    except FileNotFoundError:
+        print("File does not exist.")
+        POL_to_VV = {} # db.storage.json.get("gameDayInfo.json")
+    except pickle.PickleError as e:
+        print(f"An error occurred with the pickle file: {e}")
+
+    row_list = []
+    for pol_wine_name, pol_wine in pol_dict.items():
+        try:
+            vv_wine = VVwines[POL_to_VV[pol_wine._name]]
+            year = extract_year(pol_wine._name)
+            row_dict = {
+                'pol_name': pol_wine._name,
+                'pol_year': year,
+                # 'pol_brand': pol_wine._brand,
+                'pol_country': pol_wine._main_country ,
+                'pol_category': pol_wine._main_category,
+                # 'pol_type': pol_wine._type,
+                'pol_area': pol_wine._district ,
+                # 'pol_grapes': pol_wine._grapes,
+                # 'pol_percentage': pol_wine._alc_percentage,
+                'pol_price': pol_wine._price,
+                # 'pol_amount': pol_wine._amount,
+                'pol_litre_price': pol_wine._price_litre*100,
+                'pol_url': pol_wine._url,
+                # 'pol_description': pol_wine._description,
+                'vv_name': vv_wine._name,
+                'vv_rating': vv_wine._rating,
+                'vv_ratings': vv_wine._no_of_ratings,
+                'vv_url': vv_wine._full_wine_url,
+                }
+            
+            row_list.append(row_dict)
+
+        except KeyError as e:
+            # print(f"Key not present in TF to VV mapping, query probably returned NO matches... Pass on this wine then. Error key: {e}")
+            pass
+        
+    
+    df = pd.DataFrame(row_list)
+    print(df.head(5))
+    csv_file_path = os.path.join(data_folder, 'POL_VV_export.csv')
+    with open(csv_file_path, "w") as file:
+        file.write(df.to_csv())
